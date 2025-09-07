@@ -12,12 +12,12 @@ async function decipherFetchResponse(json: { cipher: string; aes: string; iv: st
 
 async function decrypt(cipher: string, AES_KEY: string, AES_IV: string) {
   if (!AES_KEY || !AES_IV) {
-    throw Error("Missing AES key or IV");
+    throw new Error("Missing AES key or IV");
   }
 
   const UInt8_IV = new TextEncoder().encode(AES_IV);
   if (UInt8_IV.length !== 16) {
-    throw Error("AES_IV must be 16 bytes");
+    throw new Error("AES_IV must be 16 bytes");
   }
 
   const cryptoKey = await getCryptoKey(AES_KEY);
@@ -39,7 +39,7 @@ async function getCryptoKey(AES_KEY: string) {
   const UInt8_KEY = new TextEncoder().encode(AES_KEY);
 
   if (UInt8_KEY.length !== 16 && UInt8_KEY.length !== 32) {
-    throw Error("AES_KEY must be 16 or 32 bytes");
+    throw new Error("AES_KEY must be 16 or 32 bytes");
   }
 
   return crypto.subtle.importKey(
@@ -54,7 +54,7 @@ async function getCryptoKey(AES_KEY: string) {
 function parseCipherText(cipher_internal: string) {
   const cleanCipher = cipher_internal.replace(/[^0-9a-fA-F]/g, "");
   if (cleanCipher.length % 2 !== 0) {
-    throw Error("Invalid hex");
+    throw new Error("Invalid hex");
   }
 
   const cypherBytes = new Uint8Array(cleanCipher.length / 2);
@@ -68,7 +68,7 @@ function parseCipherText(cipher_internal: string) {
 // --- API Route ---
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as { cipher?: string; aes?: string; iv?: string };
     const { cipher, aes, iv } = body;
 
     if (!cipher || !aes || !iv) {
@@ -80,7 +80,8 @@ export async function POST(req: NextRequest) {
 
     const result = await decipherFetchResponse({ cipher, aes, iv });
     return NextResponse.json({ result });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
